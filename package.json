@@ -1,0 +1,21 @@
+{
+  "name": "runelib",
+  "version": "1.0.0",
+  "description": "runestones encode and decode",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "keywords": [
+    "runestones"
+  ],
+  "author": "scrypt",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "bitcoinjs-lib": "^6.1.5"
+  }
+}
