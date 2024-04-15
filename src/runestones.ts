@@ -153,6 +153,10 @@ export class Runestone {
 
     }
 
+    static encipher(): number[] {
+        throw new Error("TODO")
+    }
+
 
     static payload(tx: Transaction): Option<number[]> {
 
