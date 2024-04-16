@@ -3,16 +3,58 @@ import { base26Decode, base26Encode } from "./base26";
 import { Varint } from "./varint";
 import { Option, none, some } from "./fts";
 import { encodeLEB128 } from "./leb128";
+import { chunks } from "./utils";
 
 export class RuneId {
     constructor(public block: number, public idx: number) {
 
     }
+
+    next(block: bigint, idx: bigint): Option<RuneId> {
+
+        if(block > BigInt(Number.MAX_SAFE_INTEGER)) {
+            return none();
+        }
+
+        if(idx > BigInt(Number.MAX_SAFE_INTEGER)) {
+            return none();
+        }
+
+        let b = BigInt(this.block) + block;
+
+        if(b > BigInt(Number.MAX_SAFE_INTEGER)) {
+            return none();
+        }
+
+
+        let i = block === 0n ? BigInt(this.idx) + idx : idx;
+
+        if(i > BigInt(Number.MAX_SAFE_INTEGER)) {
+            return none();
+        }
+
+
+        return some(new RuneId(Number(b), Number(i)))
+    }
 }
 
 
 export class Edict {
-    constructor(public id: RuneId, public amount: number, public output: number) {
+    constructor(public id: RuneId, public amount: bigint, public output: number) {
+
+    }
+
+    static from_integers(tx: Transaction, id: RuneId, amount: bigint, output: bigint) : Option<Edict> {
+
+        if(output > 4_294_967_295n || output < 0n) {
+            return none();
+        }
+
+        if(Number(output) > tx.outs.length) {
+            return none();
+        }
+
+        return some(new Edict(id, amount, Number(output)))
 
     }
 }
@@ -233,6 +275,39 @@ export class Message {
 
         for (let i = 0; i < integers.length;) {
             let tag = integers[i];
+
+            
+
+            if(Number(tag) === Tag.Body) {
+
+                let id = new RuneId(0, 0);
+
+                for (const chunk of chunks(integers.slice(i+1), 4)) {
+                    if(chunk.length != 4) {
+                        flaws |= Flaw.TrailingIntegers;
+                        break;
+                    }
+
+                    let next = id.next(chunk[0], chunk[1]);
+
+                    if(!next.isSome()) {
+                        flaws |= Flaw.EdictRuneId;
+                        break;
+                    }
+
+
+                    const edict = Edict.from_integers(tx, id, chunk[2], chunk[3]);
+
+                    if(!edict.isSome()) {
+                        flaws |= Flaw.EdictOutput;
+                        break;
+                    }
+
+                    id = next.value() as RuneId;
+                    edicts.push(edict.value() as Edict);
+                }
+        
+            }
 
             let val = integers[i + 1];
 

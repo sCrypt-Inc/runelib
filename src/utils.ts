@@ -23,3 +23,17 @@ export const toHex = (msg: number[]): string => {
     }
     return res
 }
+
+
+
+export function chunks<T>(bin: T[], len: number): T[][]{
+
+    const chunks: T[][] = [];
+
+    for (let i = 0; i < bin.length; i++) {
+        const chunk = bin.slice(i*len, i*len + len);
+        chunks.push(chunk);
+    }
+
+    return chunks;
+}
