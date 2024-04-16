@@ -26,13 +26,64 @@ export const toHex = (msg: number[]): string => {
 
 
 
-export function chunks<T>(bin: T[], len: number): T[][]{
+export function chunks<T>(bin: T[], len: number): T[][] {
 
     const chunks: T[][] = [];
 
     for (let i = 0; i < bin.length; i++) {
-        const chunk = bin.slice(i*len, i*len + len);
+        const chunk = bin.slice(i * len, i * len + len);
         chunks.push(chunk);
+    }
+
+    return chunks;
+}
+
+export function toPushData(data: Buffer): Buffer {
+    const res: Array<Buffer> = []
+
+    const dLen = data.length
+    if (dLen < 0x4c) {
+        const dLenBuff = Buffer.alloc(1)
+        dLenBuff.writeUInt8(dLen)
+        res.push(dLenBuff)
+    } else if (dLen <= 0xff) {
+        // OP_PUSHDATA1
+        res.push(Buffer.from('4c', 'hex'))
+
+        const dLenBuff = Buffer.alloc(1)
+        dLenBuff.writeUInt8(dLen)
+        res.push(dLenBuff)
+    } else if (dLen <= 0xffff) {
+        // OP_PUSHDATA2
+        res.push(Buffer.from('4d', 'hex'))
+
+        const dLenBuff = Buffer.alloc(2)
+        dLenBuff.writeUint16LE(dLen)
+        res.push(dLenBuff)
+    } else {
+        // OP_PUSHDATA4
+        res.push(Buffer.from('4e', 'hex'))
+
+        const dLenBuff = Buffer.alloc(4)
+        dLenBuff.writeUint32LE(dLen)
+        res.push(dLenBuff)
+    }
+
+    res.push(data)
+    
+    return Buffer.concat(res)
+}
+
+export function splitBufferIntoChunks(buffer: Buffer, chunkSize: number = 520): Buffer[] {
+    const chunks: Buffer[] = [];
+    let offset = 0;
+
+    while (offset < buffer.length) {
+        // Use Buffer.slice to create a chunk. This method does not copy the memory;
+        // it creates a new Buffer that references the original memory.
+        const chunk = buffer.slice(offset, offset + chunkSize);
+        chunks.push(chunk);
+        offset += chunkSize;
     }
 
     return chunks;

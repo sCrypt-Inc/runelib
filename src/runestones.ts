@@ -1,9 +1,10 @@
-import { Transaction, script, } from "bitcoinjs-lib";
+import { Transaction, script } from "bitcoinjs-lib";
 import { base26Decode, base26Encode } from "./base26";
 import { Varint } from "./varint";
 import { Option, none, some } from "./fts";
 import { encodeLEB128 } from "./leb128";
-import { chunks } from "./utils";
+import { chunks, splitBufferIntoChunks, toPushData } from "./utils";
+import { ContentType } from "./contentType";
 
 export class RuneId {
     constructor(public block: number, public idx: number) {
@@ -12,24 +13,24 @@ export class RuneId {
 
     next(block: bigint, idx: bigint): Option<RuneId> {
 
-        if(block > BigInt(Number.MAX_SAFE_INTEGER)) {
+        if (block > BigInt(Number.MAX_SAFE_INTEGER)) {
             return none();
         }
 
-        if(idx > BigInt(Number.MAX_SAFE_INTEGER)) {
+        if (idx > BigInt(Number.MAX_SAFE_INTEGER)) {
             return none();
         }
 
         let b = BigInt(this.block) + block;
 
-        if(b > BigInt(Number.MAX_SAFE_INTEGER)) {
+        if (b > BigInt(Number.MAX_SAFE_INTEGER)) {
             return none();
         }
 
 
         let i = block === 0n ? BigInt(this.idx) + idx : idx;
 
-        if(i > BigInt(Number.MAX_SAFE_INTEGER)) {
+        if (i > BigInt(Number.MAX_SAFE_INTEGER)) {
             return none();
         }
 
@@ -44,13 +45,13 @@ export class Edict {
 
     }
 
-    static from_integers(tx: Transaction, id: RuneId, amount: bigint, output: bigint) : Option<Edict> {
+    static from_integers(tx: Transaction, id: RuneId, amount: bigint, output: bigint): Option<Edict> {
 
-        if(output > 4_294_967_295n || output < 0n) {
+        if (output > 4_294_967_295n || output < 0n) {
             return none();
         }
 
-        if(Number(output) > tx.outs.length) {
+        if (Number(output) > tx.outs.length) {
             return none();
         }
 
@@ -130,14 +131,15 @@ export class Rune {
         return base26Decode(s);
     }
 
-
     public static fromName(s: string): Rune {
+        // TODO: How to handle spacers?
         return new Rune(base26Encode(s));
     }
 
     toString() {
         return this.name;
     }
+
 }
 
 
@@ -166,7 +168,8 @@ export class Runestone {
         public edicts: Array<Edict> = [],
         public etching: Option<Etching>,
         public mint: Option<RuneId>,
-        public pointer: Option<number>) {
+        public pointer: Option<number>
+    ) {
     }
 
 
@@ -177,7 +180,6 @@ export class Runestone {
 
         if (payload.isSome()) {
             const integers = Runestone.integers(payload.value() as number[]);
-
 
             const message = Message.from_integers(tx, integers.value() as bigint[]);
 
@@ -194,14 +196,14 @@ export class Runestone {
     }
 
 
-    static encipher(
-        stone: Runestone
-    ): Buffer {
-
-        const message = stone.toMessage();
+    encipher(): Buffer {
+        const msg = this.toMessage()
+        const msgBuff = msg.toBuffer()
 
         const prefix = Buffer.from('6a5d', 'hex')  // OP_RETURN OP_13
-        return Buffer.concat([prefix, message.toBuffer()])
+        const pushNum = Buffer.alloc(1)
+        pushNum.writeUint8(msgBuff.length)
+        return Buffer.concat([prefix, pushNum, msgBuff])
     }
 
 
@@ -254,26 +256,24 @@ export class Runestone {
         return some(integers)
     }
 
-    toMessage(): Message {
 
+    toMessage(): Message {
 
         let fields: Map<number, bigint[]> = new Map();
 
+        const etching = this.etching.value();
 
-        const etching =  this.etching.value();
+        if (etching) {
 
-        if(etching) {
+            let flags = 1;
 
-            let flags = Flag.Etching;
-
-
-            if(etching.terms.isSome()) {
+            if (etching.terms.isSome()) {
                 let mask = 1 << Flag.Terms;
                 flags |= mask
             }
 
 
-            if(etching.turbo) {
+            if (etching.turbo) {
                 let mask = 1 << Flag.Turbo;
                 flags |= mask
             }
@@ -283,80 +283,80 @@ export class Runestone {
 
             const rune = etching.rune.value()
 
-            if(rune) {
+            if (rune) {
                 fields.set(Tag.Rune, [BigInt(rune.value)])
             }
 
             const divisibility = etching.divisibility.value()
 
-            if(divisibility) {
+            if (divisibility) {
                 fields.set(Tag.Divisibility, [BigInt(divisibility)])
             }
 
             const spacers = etching.spacers.value()
 
-            if(spacers) {
+            if (spacers) {
                 fields.set(Tag.Spacers, [BigInt(spacers)])
             }
 
             const symbol = etching.symbol.value()
 
-            if(symbol) {
+            if (symbol) {
                 fields.set(Tag.Symbol, [BigInt(symbol.charCodeAt(0))])
             }
 
             const premine = etching.premine.value()
 
-            if(premine) {
+            if (premine) {
                 fields.set(Tag.Premine, [BigInt(premine)])
             }
 
             const terms = etching.terms.value()
 
-            if(terms) {
+            if (terms) {
                 fields.set(Tag.Amount, [BigInt(terms.amount)])
                 fields.set(Tag.Cap, [BigInt(terms.cap)])
 
 
                 const heightStart = terms.height.start.value();
 
-                if(heightStart) {
+                if (heightStart) {
                     fields.set(Tag.HeightStart, [BigInt(heightStart)])
 
                 }
 
-                
+
                 const heightEnd = terms.height.end.value();
 
-                if(heightEnd) {
+                if (heightEnd) {
                     fields.set(Tag.HeightEnd, [BigInt(heightEnd)])
                 }
 
                 const offsetStart = terms.offset.start.value();
 
-                if(offsetStart) {
+                if (offsetStart) {
                     fields.set(Tag.OffsetStart, [BigInt(offsetStart)])
 
                 }
 
                 const offsetEnd = terms.offset.end.value();
 
-                if(offsetEnd) {
+                if (offsetEnd) {
                     fields.set(Tag.OffsetEnd, [BigInt(offsetEnd)])
                 }
             }
         }
 
 
-        const mint =  this.mint.value();
+        const mint = this.mint.value();
 
-        if(mint) {
+        if (mint) {
             fields.set(Tag.Mint, [BigInt(mint.block), BigInt(mint.idx)])
         }
 
-        const pointer =  this.pointer.value();
+        const pointer = this.pointer.value();
 
-        if(pointer) {
+        if (pointer) {
             fields.set(Tag.Pointer, [BigInt(pointer)])
         }
 
@@ -372,46 +372,57 @@ export class Runestone {
 export class Message {
 
     constructor(
-        public fields: Map<number, Array<bigint>>,
-        public edicts: Array<Edict>,
-        public flaws: number,
+        public fields: Map<number, Array<bigint>> = new Map(),
+        public edicts: Array<Edict> = [],
+        public flaws: number = 0,
     ) {
 
     }
 
     static from_integers(tx: Transaction, integers: bigint[]): Message {
-
-        let edicts: Array<Edict> = [];
         let fields: Map<number, bigint[]> = new Map();
+        let edicts: Array<Edict> = [];
         let flaws = 0;
 
+        let isBody = false
 
         for (let i = 0; i < integers.length;) {
             let tag = integers[i];
+            if (Number(tag) === Tag.Body) {
+                isBody = true
+                i += 1
+                continue
+            }
 
-            
+            if (!isBody) {
+                // Fields:
+                let val = integers[i + 1];
+                const vals = fields.get(Number(tag)) || [];
+                vals.push(val);
 
-            if(Number(tag) === Tag.Body) {
+                fields.set(Number(tag), vals);
 
+                i += 2;
+            } else {
+                // Edicts:
                 let id = new RuneId(0, 0);
 
-                for (const chunk of chunks(integers.slice(i+1), 4)) {
-                    if(chunk.length != 4) {
+                for (const chunk of chunks(integers.slice(i), 4)) {
+                    if (chunk.length != 4) {
                         flaws |= Flaw.TrailingIntegers;
                         break;
                     }
 
                     let next = id.next(chunk[0], chunk[1]);
 
-                    if(!next.isSome()) {
+                    if (!next.isSome()) {
                         flaws |= Flaw.EdictRuneId;
                         break;
                     }
 
+                    const edict = Edict.from_integers(tx, next.value()!, chunk[2], chunk[3]);
 
-                    const edict = Edict.from_integers(tx, id, chunk[2], chunk[3]);
-
-                    if(!edict.isSome()) {
+                    if (!edict.isSome()) {
                         flaws |= Flaw.EdictOutput;
                         break;
                     }
@@ -419,18 +430,9 @@ export class Message {
                     id = next.value() as RuneId;
                     edicts.push(edict.value() as Edict);
                 }
-        
+
+                i += 4;
             }
-
-            let val = integers[i + 1];
-
-            const vals = fields.get(Number(tag)) || [];
-            vals.push(val);
-
-            fields.set(Number(tag), vals);
-
-            i += 2;
-
         }
 
         return new Message(fields, edicts, flaws);
@@ -462,46 +464,49 @@ export class Message {
         }
 
         // Serialize edicts.
-        buffArr.push(Buffer.from('00', 'hex'))
-        // 1) Sort by block height
-        // 2) Sort by tx idx
-        this.edicts.sort((a, b) => {
-            if (a.id.block == b.id.block) {
-                return a.id.idx - b.id.idx
-            }
-            return a.id.block - b.id.block
-        })
-        // 3) Delta encode
-        let lastBlockHeight: bigint = 0n;
-        let lastTxIdx: bigint = 0n;
-        for (let i = 0; i < this.edicts.length; i++) {
-            const edict = this.edicts[i]
-            if (i == 0) {
-                lastBlockHeight = BigInt(edict.id.block)
-                lastTxIdx = BigInt(edict.id.idx)
-                buffArr.push(Buffer.from(encodeLEB128(lastBlockHeight)))
-                buffArr.push(Buffer.from(encodeLEB128(lastTxIdx)))
-            } else {
-                const currBlockHeight = BigInt(edict.id.block)
-                const currTxIdx = BigInt(edict.id.idx)
-
-                if (currBlockHeight == lastBlockHeight) {
-                    const deltaTxIdx = currTxIdx - lastTxIdx
-
-                    buffArr.push(Buffer.from(encodeLEB128(0n)))
-                    buffArr.push(Buffer.from(encodeLEB128(deltaTxIdx)))
-                } else {
-                    const deltaBlockHeight = currBlockHeight - lastBlockHeight
-                    lastBlockHeight = currBlockHeight
-                    lastTxIdx = currTxIdx
-
-                    buffArr.push(Buffer.from(encodeLEB128(deltaBlockHeight)))
-                    buffArr.push(Buffer.from(encodeLEB128(currTxIdx)))
+        if (this.edicts.length > 0) {
+            buffArr.push(Buffer.from('00', 'hex'))
+            // 1) Sort by block height
+            // 2) Sort by tx idx
+            this.edicts.sort((a, b) => {
+                if (a.id.block == b.id.block) {
+                    return a.id.idx - b.id.idx
                 }
-            }
+                return a.id.block - b.id.block
+            })
+            // 3) Delta encode
+            let lastBlockHeight: bigint = 0n;
+            let lastTxIdx: bigint = 0n;
+            for (let i = 0; i < this.edicts.length; i++) {
+                const edict = this.edicts[i]
+                if (i == 0) {
+                    lastBlockHeight = BigInt(edict.id.block)
+                    lastTxIdx = BigInt(edict.id.idx)
+                    buffArr.push(Buffer.from(encodeLEB128(lastBlockHeight)))
+                    buffArr.push(Buffer.from(encodeLEB128(lastTxIdx)))
+                } else {
+                    const currBlockHeight = BigInt(edict.id.block)
+                    const currTxIdx = BigInt(edict.id.idx)
 
-            buffArr.push(Buffer.from(encodeLEB128(BigInt(edict.amount))))
-            buffArr.push(Buffer.from(encodeLEB128(BigInt(edict.output))))
+                    if (currBlockHeight == lastBlockHeight) {
+                        const deltaTxIdx = currTxIdx - lastTxIdx
+                        lastTxIdx = currTxIdx
+
+                        buffArr.push(Buffer.from(encodeLEB128(0n)))
+                        buffArr.push(Buffer.from(encodeLEB128(deltaTxIdx)))
+                    } else {
+                        const deltaBlockHeight = currBlockHeight - lastBlockHeight
+                        lastBlockHeight = currBlockHeight
+                        lastTxIdx = currTxIdx
+
+                        buffArr.push(Buffer.from(encodeLEB128(deltaBlockHeight)))
+                        buffArr.push(Buffer.from(encodeLEB128(currTxIdx)))
+                    }
+                }
+
+                buffArr.push(Buffer.from(encodeLEB128(BigInt(edict.amount))))
+                buffArr.push(Buffer.from(encodeLEB128(BigInt(edict.output))))
+            }
         }
 
         return Buffer.concat(buffArr)
@@ -702,3 +707,118 @@ export class Message {
     }
 
 }
+
+
+export class EtchInscription {
+
+    static Tag = {
+        CONTENT_TYPE: 1,
+        POINTER: 2,
+        PARENT: 3,
+        METADATA: 5,
+        METAPROTOCOL: 7,
+        CONTENT_ENCODING: 9,
+        DELEGATE: 11,
+        RUNE: 13
+    }
+
+    constructor(
+        public fields: Map<number, Buffer> = new Map(),
+        public data: Buffer = Buffer.alloc(0)
+    ) {
+
+    }
+
+    setContent(contentType: string, data: Buffer) {
+        this.fields.set(1, Buffer.from(contentType, 'utf8'))
+        this.data = data
+    }
+
+    setField(field: number, val: Buffer) {
+        this.fields.set(field, val)
+    }
+
+    static decipher(
+        rawTx: string,
+        inputIdx: number
+    ) {
+        const tx = Transaction.fromHex(rawTx);
+
+        const witness = tx.ins[inputIdx].witness
+        const tapscript = witness[1]
+
+        const ls = script.decompile(tapscript) as Array<number | Uint8Array>;
+
+        const fields: Map<number, Buffer> = new Map()
+        const dataChunks: Array<Buffer> = []
+
+        let isData = false
+        for (let i = 5; i < ls.length - 1;) {
+            const chunk = ls[i]
+
+            if (chunk === 0) {
+                isData = true
+                i++
+                continue
+            } else if (isData) {
+                // Data
+                dataChunks.push(chunk as Buffer)
+                i++
+            } else {
+                // Fields
+                const tag = (chunk as number) - 80
+                const val = ls[i + 1]
+                if (typeof val == 'number') {
+                    const buff = Buffer.alloc(1)
+                    buff.writeUint8(val)
+                    fields.set(tag, buff)
+                } else {
+                    fields.set(tag, val as Buffer)
+                }
+                i += 2
+            }
+
+        }
+
+        return new EtchInscription(
+            fields,
+            Buffer.concat(dataChunks)
+        )
+    }
+
+    encipher(): Buffer {
+        const res = [
+            Buffer.from('0063036f7264', 'hex') // 0 OP_IF "ord"
+        ]
+
+        Array.from(this.fields.entries())
+            .sort((a, b) => a[0] - b[0]) // Sorting by tag in ascending order
+            .forEach(([tag, val]) => {
+                const tagBuff = Buffer.alloc(1);
+                tagBuff.writeUInt8(tag);
+                res.push(Buffer.from('01', 'hex'))
+                res.push(tagBuff);
+
+                if (val.length != 1 || val[0] != 0x00) {
+                    res.push(toPushData(val))
+                } else {
+                    res.push(val);
+                }
+            });
+
+        // TODO: empty data?
+
+        res.push(Buffer.from('00', 'hex'))
+
+        const dataChunks = splitBufferIntoChunks(this.data, 520)
+        for (const chunk of dataChunks) {
+            res.push(toPushData(chunk))
+        }
+
+        res.push(Buffer.from('68', 'hex')) // OP_ENDIF
+
+        return Buffer.concat(res)
+    }
+
+}
+
