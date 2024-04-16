@@ -12,24 +12,24 @@ export class RuneId {
 
     next(block: bigint, idx: bigint): Option<RuneId> {
 
-        if(block > BigInt(Number.MAX_SAFE_INTEGER)) {
+        if (block > BigInt(Number.MAX_SAFE_INTEGER)) {
             return none();
         }
 
-        if(idx > BigInt(Number.MAX_SAFE_INTEGER)) {
+        if (idx > BigInt(Number.MAX_SAFE_INTEGER)) {
             return none();
         }
 
         let b = BigInt(this.block) + block;
 
-        if(b > BigInt(Number.MAX_SAFE_INTEGER)) {
+        if (b > BigInt(Number.MAX_SAFE_INTEGER)) {
             return none();
         }
 
 
         let i = block === 0n ? BigInt(this.idx) + idx : idx;
 
-        if(i > BigInt(Number.MAX_SAFE_INTEGER)) {
+        if (i > BigInt(Number.MAX_SAFE_INTEGER)) {
             return none();
         }
 
@@ -44,13 +44,13 @@ export class Edict {
 
     }
 
-    static from_integers(tx: Transaction, id: RuneId, amount: bigint, output: bigint) : Option<Edict> {
+    static from_integers(tx: Transaction, id: RuneId, amount: bigint, output: bigint): Option<Edict> {
 
-        if(output > 4_294_967_295n || output < 0n) {
+        if (output > 4_294_967_295n || output < 0n) {
             return none();
         }
 
-        if(Number(output) > tx.outs.length) {
+        if (Number(output) > tx.outs.length) {
             return none();
         }
 
@@ -130,7 +130,6 @@ export class Rune {
         return base26Decode(s);
     }
 
-
     public static fromName(s: string): Rune {
         return new Rune(base26Encode(s));
     }
@@ -138,6 +137,7 @@ export class Rune {
     toString() {
         return this.name;
     }
+
 }
 
 
@@ -259,9 +259,9 @@ export class Runestone {
 export class Message {
 
     constructor(
-        public fields: Map<number, Array<bigint>>,
-        public edicts: Array<Edict>,
-        public flaws: number,
+        public fields: Map<number, Array<bigint>> = new Map(),
+        public edicts: Array<Edict> = [],
+        public flaws: number = 0,
     ) {
 
     }
@@ -276,21 +276,21 @@ export class Message {
         for (let i = 0; i < integers.length;) {
             let tag = integers[i];
 
-            
 
-            if(Number(tag) === Tag.Body) {
+
+            if (Number(tag) === Tag.Body) {
 
                 let id = new RuneId(0, 0);
 
-                for (const chunk of chunks(integers.slice(i+1), 4)) {
-                    if(chunk.length != 4) {
+                for (const chunk of chunks(integers.slice(i + 1), 4)) {
+                    if (chunk.length != 4) {
                         flaws |= Flaw.TrailingIntegers;
                         break;
                     }
 
                     let next = id.next(chunk[0], chunk[1]);
 
-                    if(!next.isSome()) {
+                    if (!next.isSome()) {
                         flaws |= Flaw.EdictRuneId;
                         break;
                     }
@@ -298,7 +298,7 @@ export class Message {
 
                     const edict = Edict.from_integers(tx, id, chunk[2], chunk[3]);
 
-                    if(!edict.isSome()) {
+                    if (!edict.isSome()) {
                         flaws |= Flaw.EdictOutput;
                         break;
                     }
@@ -306,7 +306,7 @@ export class Message {
                     id = next.value() as RuneId;
                     edicts.push(edict.value() as Edict);
                 }
-        
+
             }
 
             let val = integers[i + 1];
@@ -349,46 +349,48 @@ export class Message {
         }
 
         // Serialize edicts.
-        buffArr.push(Buffer.from('00', 'hex'))
-        // 1) Sort by block height
-        // 2) Sort by tx idx
-        this.edicts.sort((a, b) => {
-            if (a.id.block == b.id.block) {
-                return a.id.idx - b.id.idx
-            }
-            return a.id.block - b.id.block
-        })
-        // 3) Delta encode
-        let lastBlockHeight: bigint = 0n;
-        let lastTxIdx: bigint = 0n;
-        for (let i = 0; i < this.edicts.length; i++) {
-            const edict = this.edicts[i]
-            if (i == 0) {
-                lastBlockHeight = BigInt(edict.id.block)
-                lastTxIdx = BigInt(edict.id.idx)
-                buffArr.push(Buffer.from(encodeLEB128(lastBlockHeight)))
-                buffArr.push(Buffer.from(encodeLEB128(lastTxIdx)))
-            } else {
-                const currBlockHeight = BigInt(edict.id.block)
-                const currTxIdx = BigInt(edict.id.idx)
-
-                if (currBlockHeight == lastBlockHeight) {
-                    const deltaTxIdx = currTxIdx - lastTxIdx
-
-                    buffArr.push(Buffer.from(encodeLEB128(0n)))
-                    buffArr.push(Buffer.from(encodeLEB128(deltaTxIdx)))
-                } else {
-                    const deltaBlockHeight = currBlockHeight - lastBlockHeight
-                    lastBlockHeight = currBlockHeight
-                    lastTxIdx = currTxIdx
-
-                    buffArr.push(Buffer.from(encodeLEB128(deltaBlockHeight)))
-                    buffArr.push(Buffer.from(encodeLEB128(currTxIdx)))
+        if (this.edicts.length > 0) {
+            buffArr.push(Buffer.from('00', 'hex'))
+            // 1) Sort by block height
+            // 2) Sort by tx idx
+            this.edicts.sort((a, b) => {
+                if (a.id.block == b.id.block) {
+                    return a.id.idx - b.id.idx
                 }
-            }
+                return a.id.block - b.id.block
+            })
+            // 3) Delta encode
+            let lastBlockHeight: bigint = 0n;
+            let lastTxIdx: bigint = 0n;
+            for (let i = 0; i < this.edicts.length; i++) {
+                const edict = this.edicts[i]
+                if (i == 0) {
+                    lastBlockHeight = BigInt(edict.id.block)
+                    lastTxIdx = BigInt(edict.id.idx)
+                    buffArr.push(Buffer.from(encodeLEB128(lastBlockHeight)))
+                    buffArr.push(Buffer.from(encodeLEB128(lastTxIdx)))
+                } else {
+                    const currBlockHeight = BigInt(edict.id.block)
+                    const currTxIdx = BigInt(edict.id.idx)
 
-            buffArr.push(Buffer.from(encodeLEB128(BigInt(edict.amount))))
-            buffArr.push(Buffer.from(encodeLEB128(BigInt(edict.output))))
+                    if (currBlockHeight == lastBlockHeight) {
+                        const deltaTxIdx = currTxIdx - lastTxIdx
+
+                        buffArr.push(Buffer.from(encodeLEB128(0n)))
+                        buffArr.push(Buffer.from(encodeLEB128(deltaTxIdx)))
+                    } else {
+                        const deltaBlockHeight = currBlockHeight - lastBlockHeight
+                        lastBlockHeight = currBlockHeight
+                        lastTxIdx = currTxIdx
+
+                        buffArr.push(Buffer.from(encodeLEB128(deltaBlockHeight)))
+                        buffArr.push(Buffer.from(encodeLEB128(currTxIdx)))
+                    }
+                }
+
+                buffArr.push(Buffer.from(encodeLEB128(BigInt(edict.amount))))
+                buffArr.push(Buffer.from(encodeLEB128(BigInt(edict.output))))
+            }
         }
 
         return Buffer.concat(buffArr)
