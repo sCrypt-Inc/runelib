@@ -406,8 +406,6 @@ export class Message {
             } else {
                 // Edicts:
                 let id = new RuneId(0, 0);
-                let blockHeightAbsolute = 0;
-                let txIdxAbsolute = 0;
 
                 for (const chunk of chunks(integers.slice(i), 4)) {
                     if (chunk.length != 4) {
@@ -422,11 +420,7 @@ export class Message {
                         break;
                     }
 
-                    blockHeightAbsolute += Number(chunk[0])
-                    txIdxAbsolute += Number(chunk[1])
-                    const idAbsolute = new RuneId(blockHeightAbsolute, txIdxAbsolute)
-
-                    const edict = Edict.from_integers(tx, idAbsolute, chunk[2], chunk[3]);
+                    const edict = Edict.from_integers(tx, next.value()!, chunk[2], chunk[3]);
 
                     if (!edict.isSome()) {
                         flaws |= Flaw.EdictOutput;
