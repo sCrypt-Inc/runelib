@@ -1,7 +1,11 @@
+import { encodeLEB128 } from "./leb128";
+
 export class Varint {
 
-    static encode(n: number): number[] {
-        return []
+    static encode(n: bigint): number[] {
+
+
+        return encodeLEB128(n)
     }
 
 
