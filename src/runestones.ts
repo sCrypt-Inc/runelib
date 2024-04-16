@@ -195,8 +195,11 @@ export class Runestone {
 
 
     static encipher(
-        message: Message
+        stone: Runestone
     ): Buffer {
+
+        const message = stone.toMessage();
+
         const prefix = Buffer.from('6a5d', 'hex')  // OP_RETURN OP_13
         return Buffer.concat([prefix, message.toBuffer()])
     }
@@ -249,6 +252,116 @@ export class Runestone {
         }
 
         return some(integers)
+    }
+
+    toMessage(): Message {
+
+
+        let fields: Map<number, bigint[]> = new Map();
+
+
+        const etching =  this.etching.value();
+
+        if(etching) {
+
+            let flags = Flag.Etching;
+
+
+            if(etching.terms.isSome()) {
+                let mask = 1 << Flag.Terms;
+                flags |= mask
+            }
+
+
+            if(etching.turbo) {
+                let mask = 1 << Flag.Turbo;
+                flags |= mask
+            }
+
+            fields.set(Tag.Flags, [BigInt(flags)])
+
+
+            const rune = etching.rune.value()
+
+            if(rune) {
+                fields.set(Tag.Rune, [BigInt(rune.value)])
+            }
+
+            const divisibility = etching.divisibility.value()
+
+            if(divisibility) {
+                fields.set(Tag.Divisibility, [BigInt(divisibility)])
+            }
+
+            const spacers = etching.spacers.value()
+
+            if(spacers) {
+                fields.set(Tag.Spacers, [BigInt(spacers)])
+            }
+
+            const symbol = etching.symbol.value()
+
+            if(symbol) {
+                fields.set(Tag.Symbol, [BigInt(symbol.charCodeAt(0))])
+            }
+
+            const premine = etching.premine.value()
+
+            if(premine) {
+                fields.set(Tag.Premine, [BigInt(premine)])
+            }
+
+            const terms = etching.terms.value()
+
+            if(terms) {
+                fields.set(Tag.Amount, [BigInt(terms.amount)])
+                fields.set(Tag.Cap, [BigInt(terms.cap)])
+
+
+                const heightStart = terms.height.start.value();
+
+                if(heightStart) {
+                    fields.set(Tag.HeightStart, [BigInt(heightStart)])
+
+                }
+
+                
+                const heightEnd = terms.height.end.value();
+
+                if(heightEnd) {
+                    fields.set(Tag.HeightEnd, [BigInt(heightEnd)])
+                }
+
+                const offsetStart = terms.offset.start.value();
+
+                if(offsetStart) {
+                    fields.set(Tag.OffsetStart, [BigInt(offsetStart)])
+
+                }
+
+                const offsetEnd = terms.offset.end.value();
+
+                if(offsetEnd) {
+                    fields.set(Tag.OffsetEnd, [BigInt(offsetEnd)])
+                }
+            }
+        }
+
+
+        const mint =  this.mint.value();
+
+        if(mint) {
+            fields.set(Tag.Mint, [BigInt(mint.block), BigInt(mint.idx)])
+        }
+
+        const pointer =  this.pointer.value();
+
+        if(pointer) {
+            fields.set(Tag.Pointer, [BigInt(pointer)])
+        }
+
+        return new Message(fields, this.edicts, 0);
+
     }
 
 }
