@@ -1,9 +1,10 @@
-import { Transaction, script, } from "bitcoinjs-lib";
+import { Transaction, script } from "bitcoinjs-lib";
 import { base26Decode, base26Encode } from "./base26";
 import { Varint } from "./varint";
 import { Option, none, some } from "./fts";
 import { encodeLEB128 } from "./leb128";
 import { chunks } from "./utils";
+import { ContentType } from "./contentType";
 
 export class RuneId {
     constructor(public block: number, public idx: number) {
@@ -420,11 +421,11 @@ export class Message {
                         flaws |= Flaw.EdictRuneId;
                         break;
                     }
-                    
+
                     blockHeightAbsolute += Number(chunk[0])
                     txIdxAbsolute += Number(chunk[1])
                     const idAbsolute = new RuneId(blockHeightAbsolute, txIdxAbsolute)
-                    
+
                     const edict = Edict.from_integers(tx, idAbsolute, chunk[2], chunk[3]);
 
                     if (!edict.isSome()) {
@@ -710,6 +711,90 @@ export class Message {
 
         return some(Number(pointer));
     }
+
+}
+
+
+export class EtchInscription {
+
+    static Tag = {
+        CONTENT_TYPE: 1,
+        POINTER: 2,
+        PARENT: 3,
+        METADATA: 5,
+        METAPROTOCOL: 7,
+        CONTENT_ENCODING: 9,
+        DELEGATE: 11,
+        RUNE: 13
+    }
+
+    constructor(
+        public fields: Map<number, Buffer> = new Map(),
+        public data: Buffer = Buffer.alloc(0)
+    ) {
+
+    }
+
+    setContent(contentType: string, data: Buffer) {
+        this.fields.set(1, Buffer.from(contentType, 'utf8'))
+        this.data = data
+    }
+
+    setField(field: number, val: Buffer) {
+        this.fields.set(field, val)
+    }
+
+    static decipher(
+        rawTx: string,
+        inputIdx: number
+    ) {
+        const tx = Transaction.fromHex(rawTx);
+
+        const witness = tx.ins[inputIdx].witness
+        const tapscript = witness[1]
+
+        const ls = script.decompile(tapscript) as Array<number | Uint8Array>;
+
+        const fields: Map<number, Buffer> = new Map()
+        const dataChunks: Array<Buffer> = []
+
+        let isData = false
+        for (let i = 5; i < ls.length - 1;) {
+            const chunk = ls[i]
+
+            if (chunk === 0) {
+                isData = true
+                i++
+                continue
+            } else if (isData) {
+                // Data
+                dataChunks.push(chunk as Buffer)
+                i++
+            } else {
+                // Fields
+                const tag = (chunk as number) - 80 
+                const val = ls[i + 1]
+                if (typeof val == 'number') {
+                    const buff = Buffer.alloc(1)
+                    buff.writeUint8(val)
+                    fields.set(tag, buff)
+                } else {
+                    fields.set(tag, val as Buffer)
+                }
+                i += 2
+            }
+
+        }
+        
+        return new EtchInscription(
+            fields,
+            Buffer.concat(dataChunks)
+        )
+    }
+
+    //encipher(): Buffer {
+
+    //}
 
 }
 
