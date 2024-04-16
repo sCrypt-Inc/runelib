@@ -131,6 +131,7 @@ export class Rune {
     }
 
     public static fromName(s: string): Rune {
+        // TODO: How to handle spacers?
         return new Rune(base26Encode(s));
     }
 
@@ -166,7 +167,8 @@ export class Runestone {
         public edicts: Array<Edict> = [],
         public etching: Option<Etching>,
         public mint: Option<RuneId>,
-        public pointer: Option<number>) {
+        public pointer: Option<number>
+    ) {
     }
 
 
@@ -177,7 +179,6 @@ export class Runestone {
 
         if (payload.isSome()) {
             const integers = Runestone.integers(payload.value() as number[]);
-
 
             const message = Message.from_integers(tx, integers.value() as bigint[]);
 
@@ -194,11 +195,14 @@ export class Runestone {
     }
 
 
-    static encipher(
-        message: Message
-    ): Buffer {
+    encipher(): Buffer {
+        const msg = this.toMessage()
+        const msgBuff = msg.toBuffer()
+
         const prefix = Buffer.from('6a5d', 'hex')  // OP_RETURN OP_13
-        return Buffer.concat([prefix, message.toBuffer()])
+        const pushNum = Buffer.alloc(1)
+        pushNum.writeUint8(msgBuff.length)
+        return Buffer.concat([prefix, pushNum, msgBuff])
     }
 
 
@@ -251,6 +255,114 @@ export class Runestone {
         return some(integers)
     }
 
+
+    toMessage(): Message {
+
+        let fields: Map<number, bigint[]> = new Map();
+
+        const etching = this.etching.value();
+
+        if (etching) {
+
+            let flags = 1;
+
+            if (etching.terms.isSome()) {
+                let mask = 1 << Flag.Terms;
+                flags |= mask
+            }
+
+
+            if (etching.turbo) {
+                let mask = 1 << Flag.Turbo;
+                flags |= mask
+            }
+
+            fields.set(Tag.Flags, [BigInt(flags)])
+
+
+            const rune = etching.rune.value()
+
+            if (rune) {
+                fields.set(Tag.Rune, [BigInt(rune.value)])
+            }
+
+            const divisibility = etching.divisibility.value()
+
+            if (divisibility) {
+                fields.set(Tag.Divisibility, [BigInt(divisibility)])
+            }
+
+            const spacers = etching.spacers.value()
+
+            if (spacers) {
+                fields.set(Tag.Spacers, [BigInt(spacers)])
+            }
+
+            const symbol = etching.symbol.value()
+
+            if (symbol) {
+                fields.set(Tag.Symbol, [BigInt(symbol.charCodeAt(0))])
+            }
+
+            const premine = etching.premine.value()
+
+            if (premine) {
+                fields.set(Tag.Premine, [BigInt(premine)])
+            }
+
+            const terms = etching.terms.value()
+
+            if (terms) {
+                fields.set(Tag.Amount, [BigInt(terms.amount)])
+                fields.set(Tag.Cap, [BigInt(terms.cap)])
+
+
+                const heightStart = terms.height.start.value();
+
+                if (heightStart) {
+                    fields.set(Tag.HeightStart, [BigInt(heightStart)])
+
+                }
+
+
+                const heightEnd = terms.height.end.value();
+
+                if (heightEnd) {
+                    fields.set(Tag.HeightEnd, [BigInt(heightEnd)])
+                }
+
+                const offsetStart = terms.offset.start.value();
+
+                if (offsetStart) {
+                    fields.set(Tag.OffsetStart, [BigInt(offsetStart)])
+
+                }
+
+                const offsetEnd = terms.offset.end.value();
+
+                if (offsetEnd) {
+                    fields.set(Tag.OffsetEnd, [BigInt(offsetEnd)])
+                }
+            }
+        }
+
+
+        const mint = this.mint.value();
+
+        if (mint) {
+            fields.set(Tag.Mint, [BigInt(mint.block), BigInt(mint.idx)])
+        }
+
+        const pointer = this.pointer.value();
+
+        if (pointer) {
+            fields.set(Tag.Pointer, [BigInt(pointer)])
+        }
+
+        return new Message(fields, this.edicts, 0);
+
+    }
+
 }
 
 
@@ -267,22 +379,36 @@ export class Message {
     }
 
     static from_integers(tx: Transaction, integers: bigint[]): Message {
-
-        let edicts: Array<Edict> = [];
         let fields: Map<number, bigint[]> = new Map();
+        let edicts: Array<Edict> = [];
         let flaws = 0;
 
+        let isBody = false
 
         for (let i = 0; i < integers.length;) {
             let tag = integers[i];
-
-
-
             if (Number(tag) === Tag.Body) {
+                isBody = true
+                i += 1
+                continue
+            }
 
+            if (!isBody) {
+                // Fields:
+                let val = integers[i + 1];
+                const vals = fields.get(Number(tag)) || [];
+                vals.push(val);
+
+                fields.set(Number(tag), vals);
+
+                i += 2;
+            } else {
+                // Edicts:
                 let id = new RuneId(0, 0);
+                let blockHeightAbsolute = 0;
+                let txIdxAbsolute = 0;
 
-                for (const chunk of chunks(integers.slice(i + 1), 4)) {
+                for (const chunk of chunks(integers.slice(i), 4)) {
                     if (chunk.length != 4) {
                         flaws |= Flaw.TrailingIntegers;
                         break;
@@ -294,9 +420,12 @@ export class Message {
                         flaws |= Flaw.EdictRuneId;
                         break;
                     }
-
-
-                    const edict = Edict.from_integers(tx, id, chunk[2], chunk[3]);
+                    
+                    blockHeightAbsolute += Number(chunk[0])
+                    txIdxAbsolute += Number(chunk[1])
+                    const idAbsolute = new RuneId(blockHeightAbsolute, txIdxAbsolute)
+                    
+                    const edict = Edict.from_integers(tx, idAbsolute, chunk[2], chunk[3]);
 
                     if (!edict.isSome()) {
                         flaws |= Flaw.EdictOutput;
@@ -307,17 +436,8 @@ export class Message {
                     edicts.push(edict.value() as Edict);
                 }
 
+                i += 4;
             }
-
-            let val = integers[i + 1];
-
-            const vals = fields.get(Number(tag)) || [];
-            vals.push(val);
-
-            fields.set(Number(tag), vals);
-
-            i += 2;
-
         }
 
         return new Message(fields, edicts, flaws);
@@ -375,6 +495,7 @@ export class Message {
 
                     if (currBlockHeight == lastBlockHeight) {
                         const deltaTxIdx = currTxIdx - lastTxIdx
+                        lastTxIdx = currTxIdx
 
                         buffArr.push(Buffer.from(encodeLEB128(0n)))
                         buffArr.push(Buffer.from(encodeLEB128(deltaTxIdx)))
@@ -591,3 +712,4 @@ export class Message {
     }
 
 }
+

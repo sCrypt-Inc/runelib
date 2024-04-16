@@ -1,4 +1,3 @@
-
 import { Edict, Message, Rune, RuneId, Tag } from '../src/runestones'
 
 import { expect, use } from 'chai'
@@ -51,6 +50,91 @@ describe('Test Message', () => {
     })
 
     it('should correctly encode transfer msg (multiple edicts)', async () => {
-        // TODO
+        const msg = new Message()
+
+        msg.addEdict(
+            new Edict(
+                new RuneId(
+                    211, 1   // Block #211, Tx #1
+                ),
+                25000n,
+                2
+            )
+        )
+
+        msg.addEdict(
+            new Edict(
+                new RuneId(
+                    281, 1   // Block #281, Tx #1
+                ),
+                100n,
+                1
+            )
+        )
+
+        const expected = Buffer.from('00d30101a8c3010246016401', 'hex')
+        const actual = msg.toBuffer()
+        expect(actual).to.eql(expected)
     })
+
+    it('should correctly encode transfer msg (multiple edicts, multiple in same block)', async () => {
+        const msg = new Message()
+
+        msg.addEdict(
+            new Edict(
+                new RuneId(
+                    211, 1   // Block #211, Tx #1
+                ),
+                25000n,
+                2
+            )
+        )
+
+        msg.addEdict(
+            new Edict(
+                new RuneId(
+                    211, 6   // Block #211, Tx #6
+                ),
+                25000n,
+                2
+            )
+        )
+
+        msg.addEdict(
+            new Edict(
+                new RuneId(
+                    211, 8   // Block #211, Tx #8
+                ),
+                25000n,
+                2
+            )
+        )
+
+        msg.addEdict(
+            new Edict(
+                new RuneId(
+                    281, 1   // Block #281, Tx #1
+                ),
+                100n,
+                1
+            )
+        )
+
+        msg.addEdict(
+            new Edict(
+                new RuneId(
+                    281, 3   // Block #281, Tx #3
+                ),
+                100n,
+                1
+            )
+        )
+
+        const expected = Buffer.from('00d30101a8c301020005a8c301020002a8c301024601640100026401', 'hex')
+        const actual = msg.toBuffer()
+        expect(actual).to.eql(expected)
+    })
+
+    // TODO: Negative cases
+
 })
