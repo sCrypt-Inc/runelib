@@ -3,7 +3,7 @@ import { base26Decode, base26Encode } from "./base26";
 import { Varint } from "./varint";
 import { Option, none, some } from "./fts";
 import { encodeLEB128 } from "./leb128";
-import { chunks } from "./utils";
+import { chunks, splitBufferIntoChunks, toPushData } from "./utils";
 import { ContentType } from "./contentType";
 
 export class RuneId {
@@ -772,7 +772,7 @@ export class EtchInscription {
                 i++
             } else {
                 // Fields
-                const tag = (chunk as number) - 80 
+                const tag = (chunk as number) - 80
                 const val = ls[i + 1]
                 if (typeof val == 'number') {
                     const buff = Buffer.alloc(1)
@@ -785,16 +785,46 @@ export class EtchInscription {
             }
 
         }
-        
+
         return new EtchInscription(
             fields,
             Buffer.concat(dataChunks)
         )
     }
 
-    //encipher(): Buffer {
+    encipher(): Buffer {
+        const res = [
+            Buffer.from('0063036f7264', 'hex') // 0 OP_IF "ord"
+        ]
 
-    //}
+        Array.from(this.fields.entries())
+            .sort((a, b) => a[0] - b[0]) // Sorting by tag in ascending order
+            .forEach(([tag, val]) => {
+                const tagBuff = Buffer.alloc(1);
+                tagBuff.writeUInt8(tag);
+                res.push(Buffer.from('01', 'hex'))
+                res.push(tagBuff);
+
+                if (val.length != 1 || val[0] != 0x00) {
+                    res.push(toPushData(val))
+                } else {
+                    res.push(val);
+                }
+            });
+
+        // TODO: empty data?
+
+        res.push(Buffer.from('00', 'hex'))
+
+        const dataChunks = splitBufferIntoChunks(this.data, 520)
+        for (const chunk of dataChunks) {
+            res.push(toPushData(chunk))
+        }
+
+        res.push(Buffer.from('68', 'hex')) // OP_ENDIF
+
+        return Buffer.concat(res)
+    }
 
 }
 
