@@ -283,37 +283,37 @@ export class Runestone {
 
             const rune = etching.rune.value()
 
-            if (rune) {
+            if (rune !== null) {
                 fields.set(Tag.Rune, [BigInt(rune.value)])
             }
 
             const divisibility = etching.divisibility.value()
 
-            if (divisibility) {
+            if (divisibility !== null) {
                 fields.set(Tag.Divisibility, [BigInt(divisibility)])
             }
 
             const spacers = etching.spacers.value()
 
-            if (spacers) {
+            if (spacers !== null) {
                 fields.set(Tag.Spacers, [BigInt(spacers)])
             }
 
             const symbol = etching.symbol.value()
 
-            if (symbol) {
+            if (symbol !== null) {
                 fields.set(Tag.Symbol, [BigInt(symbol.charCodeAt(0))])
             }
 
             const premine = etching.premine.value()
 
-            if (premine) {
+            if (premine !== null) {
                 fields.set(Tag.Premine, [BigInt(premine)])
             }
 
             const terms = etching.terms.value()
 
-            if (terms) {
+            if (terms !== null) {
                 fields.set(Tag.Amount, [BigInt(terms.amount)])
                 fields.set(Tag.Cap, [BigInt(terms.cap)])
 
@@ -350,13 +350,13 @@ export class Runestone {
 
         const mint = this.mint.value();
 
-        if (mint) {
+        if (mint !== null) {
             fields.set(Tag.Mint, [BigInt(mint.block), BigInt(mint.idx)])
         }
 
         const pointer = this.pointer.value();
 
-        if (pointer) {
+        if (pointer !== null) {
             fields.set(Tag.Pointer, [BigInt(pointer)])
         }
 
