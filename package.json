@@ -13,6 +13,7 @@
     "test:mocha": "cross-env mocha",
     "lint": "eslint . --ext .js,.ts --fix && prettier --write --ignore-unknown \"**/*\"",
     "lint-check": "eslint . --ext .js,.ts && prettier --check --ignore-unknown \"**/*\"",
+    "prepublish": "npm run build",
     "prepare": "husky install"
   },
   "lint-staged": {
