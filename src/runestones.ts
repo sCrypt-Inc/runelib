@@ -734,6 +734,11 @@ export class EtchInscription {
         this.data = data
     }
 
+    setRune(rune: string) {
+        const r = encodeLEB128(base26Encode(rune));
+        this.setField(EtchInscription.Tag.RUNE, Buffer.from(r));
+    }
+
     setField(field: number, val: Buffer) {
         this.fields.set(field, val)
     }
