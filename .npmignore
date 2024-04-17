@@ -1,3 +1,6 @@
 tsconfig.json
-src
+.mocharc.json
 test.ts
+/src
+/tests
+/.husky

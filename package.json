@@ -1,9 +1,9 @@
 {
   "name": "runelib",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "runestones encode and decode",
   "main": "dist/index.js",
-  "types": "dist",
+  "types": "dist/index.d.ts",
   "scripts": {
     "prebuild": "npm run clean",
     "build": "tsc",
