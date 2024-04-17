@@ -1,6 +1,6 @@
 {
   "name": "runelib",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "runestones encode and decode",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -33,16 +33,18 @@
     "bitcoinjs-lib": "^6.1.5"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
-    "typescript": "^5.4.5",
+    "@bitcoinerlab/secp256k1": "^1.1.1",
     "@types/chai": "^4.3.4",
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^10.0.0",
+    "@types/node": "^20.12.7",
     "@typescript-eslint/eslint-plugin": "^6.5.0",
     "@typescript-eslint/parser": "^6.5.0",
+    "axios": "^1.6.8",
     "chai": "^4.3.6",
     "chai-as-promised": "^7.1.1",
     "cross-env": "^7.0.3",
+    "ecpair": "^2.1.0",
     "eslint": "^8.48.0",
     "eslint-config-prettier": "^8.6.0",
     "husky": "^8.0.3",
@@ -50,6 +52,7 @@
     "mocha": "^10.1.0",
     "prettier": "^2.8.2",
     "rimraf": "^3.0.2",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "typescript": "^5.4.5"
   }
 }
