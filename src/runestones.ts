@@ -3,7 +3,7 @@ import { base26Decode, base26Encode } from "./base26";
 import { Varint } from "./varint";
 import { Option, none, some } from "./fts";
 import { encodeLEB128 } from "./leb128";
-import { chunks, splitBufferIntoChunks, toPushData } from "./utils";
+import { chunks, getSpacersVal, splitBufferIntoChunks, toPushData } from "./utils";
 import { ContentType } from "./contentType";
 
 export class RuneId {
@@ -161,6 +161,29 @@ export class Etching {
 
 }
 
+
+export interface EtchJSON {
+    name: string;
+    divisibility?: number;
+    premine?: number;
+    symbol?: string;
+    amount: number;
+    cap: number;
+    startHeight?: number;
+    endHeight?: number;
+    startOffset?: number;
+    endOffset?: number;
+
+    pointer?: number;
+}
+
+export interface MintJSON {
+    block: number;
+    txIdx: number;
+    pointer?: number;
+}
+
+
 export class Runestone {
 
     static readonly MAGIC_NUMBER: number = 93;
@@ -172,6 +195,57 @@ export class Runestone {
     ) {
     }
 
+    static create(json: EtchJSON | MintJSON, type: 'etch' | 'mint' | 'transfer' = 'etch') {
+
+        if(type === 'etch') {
+            json = json as EtchJSON
+            const runename = Rune.fromName(json.name);
+
+            const terms = new Terms(
+                json.amount,
+                json.cap,
+                new Range(
+                    json.startHeight ? some(json.startHeight) : none(),
+                    json.endHeight ? some(json.endHeight) : none()
+                ),
+                new Range(
+                    json.startOffset ? some(json.startOffset) : none(),
+                    json.endOffset ? some(json.endOffset) : none()
+                )
+            );
+    
+            const divisibility = json.divisibility ? some(json.divisibility) : none();
+    
+            const premine = json.premine ? some(json.premine) : none();
+    
+            const spacers = json.name.indexOf('•') > -1 ? some(getSpacersVal(json.name)) : none();
+    
+            const symbol = json.symbol ? some(json.symbol) : none();
+
+
+            const pointer = typeof json.pointer === 'number' ? some(json.pointer) : none();
+    
+    
+            const etching = new Etching(
+                divisibility,
+                premine,
+                some(runename),
+                spacers,
+                symbol,
+                some(terms),
+                true
+            );
+    
+            return new Runestone([], some(etching), none(), pointer);
+        } else if(type === 'mint') {
+            json = json as MintJSON
+            const pointer = typeof json.pointer === 'number' ? some(json.pointer) : none();
+    
+            return new Runestone([], none(), some(new RuneId(json.block, json.txIdx)), pointer);
+        } else {
+            throw new Error(`not ${type} support now`)
+        }
+    }
 
     static decipher(rawTx: string): Option<Runestone> {
         const tx = Transaction.fromHex(rawTx);
@@ -738,7 +812,7 @@ export class EtchInscription {
         const n = base26Encode(rune);
         let nstr = n.toString(16);
 
-        if(nstr.length % 2 === 1) {
+        if (nstr.length % 2 === 1) {
             nstr = '0' + nstr;
         }
 
