@@ -1,6 +1,7 @@
 import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { applySpacers, getSpacersVal } from '../src/utils'
+import { Rune } from '../dist'
 use(chaiAsPromised)
 
 describe('Test rune name spacers', () => {
@@ -20,7 +21,35 @@ describe('Test rune name spacers', () => {
         expect(getSpacersVal('A•A•AA')).to.equal(3)
         expect(getSpacersVal('A•A•A•A')).to.equal(7)
     })
-    
-    // TODO: test invalid values
 
+
+
+    it('should correctly encode and decode name', async () => {
+
+        function doEncodeAndDecode(name: string) : string {
+            const name_ = new Rune(Rune.fromName(name).value).name
+
+            return applySpacers(name_, getSpacersVal(name))
+        }
+        
+        const name1 = 'CRAIG•IS•SATOSHI•NAKAMOTO';
+
+        expect(doEncodeAndDecode(name1)).to.equal(name1)
+
+        const name2 = 'AAA•DD•D•FF•FSS•SD•DS';
+
+        expect(doEncodeAndDecode(name2)).to.equal(name2)
+
+        const name3 = 'YOU•ARE•SO•PRETTY';
+
+        expect(doEncodeAndDecode(name3)).to.equal(name3)
+
+        const name4 = 'ZZZZ•ZZZZ•ZZZZ•ZZZZ•TEST•TTTT';
+
+        expect(doEncodeAndDecode(name4)).to.equal(name4)
+
+        const name5 = 'RUNE•MEA•BSK•GARF';
+
+        expect(doEncodeAndDecode(name5)).to.equal(name5)
+    })
 })

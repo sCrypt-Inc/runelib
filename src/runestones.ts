@@ -132,8 +132,8 @@ export class Rune {
     }
 
     public static fromName(s: string): Rune {
-        // TODO: How to handle spacers?
-        return new Rune(base26Encode(s));
+        const ss = s.replace(/[•]+/g, "")
+        return new Rune(base26Encode(ss));
     }
 
     toString() {
