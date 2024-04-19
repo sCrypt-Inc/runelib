@@ -19,7 +19,7 @@ import { Rune, RuneId, Runestone, EtchInscription, none, some, Terms, Range, Etc
 initEccLib(ecc as any);
 declare const window: any;
 const ECPair: ECPairAPI = ECPairFactory(ecc);
-const network = networks.testnet;
+const network = networks.regtest;
 
 // mint: http://bridge.scrypt.io:8888/rune/BESTSCRYPTMINT
 
@@ -27,7 +27,7 @@ const network = networks.testnet;
 async function etching() {
 
 
-    const name = "BSVTOTHEMOONGOGOGO";
+    const name = "CCCCCCCCCCCCCCCCCCNH";
 
     const keyPair = ECPair.fromWIF(
         "cPwrst1ya98KhMRc5Bbj3MPB9AjQWvMAxjxQDWzv2Ak2Bq4EoXYP",
@@ -36,7 +36,7 @@ async function etching() {
 
     const ins = new EtchInscription()
 
-    ins.setContent("text/plain", Buffer.from('scrypt is best', 'utf-8'))
+    //ins.setContent("text/plain", Buffer.from('scrypt is best', 'utf-8'))
     ins.setRune(name)
     console.log(ins.encipher().toString('hex'))
 
@@ -77,15 +77,23 @@ async function etching() {
     const address = script_p2tr.address ?? "";
     console.log("send coin to address", address);
 
-    const utxos = await waitUntilUTXO(address as string)
-    console.log(`Using UTXO ${utxos[0].txid}:${utxos[0].vout}`);
+    // const utxos = await waitUntilUTXO(address as string)
+    // console.log(`Using UTXO ${utxos[0].txid}:${utxos[0].vout}`);
+
+    const utxos = [
+        {
+            txid: "03dd486aaad6b2d6bacab33ed783088ad3aa8ef87603ab48448cceac474e2581",
+            vout: 1,
+            value: 100000000
+        }
+    ]
 
     const psbt = new Psbt({ network });
 
 
     psbt.addInput({
         hash: utxos[0].txid,
-        index: 0,
+        index: utxos[0].vout,
         witnessUtxo: { value: utxos[0].value, script: script_p2tr.output! },
         tapLeafScript: [
             {
@@ -116,12 +124,12 @@ async function etching() {
 
 
     psbt.addOutput({
-        address: "tb1ppresfm876y9ddn3fgw2zr0wj0pl3zanslje9nfpznq3kc90q46rqmnne43", // change address
+        address: "bcrt1pl2yjprfdzsej49yssj38lpap9rgj9fy0pzz6venjw3gn6620l3wqf056tm", // change address
         value: 546
     });
 
     psbt.addOutput({
-        address: "tb1qh9338ymus4tcsv7g0xptwx4ksjsujqmlq945cp", // change address
+        address: "bcrt1pl2yjprfdzsej49yssj38lpap9rgj9fy0pzz6venjw3gn6620l3wqf056tm", // change address
         value: change
     });
 
@@ -176,8 +184,8 @@ export async function signAndSend(keyPair: BTCSigner, psbt: Psbt, address: strin
 
         const tx = psbt.extractTransaction();
         console.log(`Broadcasting Transaction Hex: ${tx.toHex()}`);
-        const txid = await broadcast(tx.toHex());
-        console.log(`Success! Txid is ${txid}`);
+        // const txid = await broadcast(tx.toHex());
+        // console.log(`Success! Txid is ${txid}`);
 
 
     } else { // in browser
