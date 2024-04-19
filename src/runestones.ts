@@ -3,7 +3,7 @@ import { base26Decode, base26Encode } from "./base26";
 import { Varint } from "./varint";
 import { Option, none, some } from "./fts";
 import { encodeLEB128 } from "./leb128";
-import { chunks, getSpacersVal, splitBufferIntoChunks, toPushData } from "./utils";
+import { chunks, getSpacersVal, removeSpacers, splitBufferIntoChunks, toPushData } from "./utils";
 import { ContentType } from "./contentType";
 
 export class RuneId {
@@ -131,9 +131,8 @@ export class Rune {
         return base26Decode(s);
     }
 
-    public static fromName(s: string): Rune {
-        const ss = s.replace(/[•]+/g, "")
-        return new Rune(base26Encode(ss));
+    public static fromName(name: string): Rune {
+        return new Rune(base26Encode(removeSpacers(name)));
     }
 
     toString() {
@@ -809,7 +808,7 @@ export class EtchInscription {
     }
 
     setRune(rune: string) {
-        const n = base26Encode(rune);
+        const n = base26Encode(removeSpacers(rune));
         let nstr = n.toString(16);
 
         if (nstr.length % 2 === 1) {

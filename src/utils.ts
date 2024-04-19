@@ -126,3 +126,7 @@ export function getSpacersVal(str: string): number {
 
     return res
 }
+
+export function removeSpacers(rune: string): string {
+    return  rune.replace(/[•]+/g, "")
+}
