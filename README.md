@@ -1,10 +1,15 @@
-# runelib
+# RuneLib
+[runelib](https://www.npmjs.com/package/runelib) is a TypeScript library for Runes on Bitcoin. It enciphers and deciphers [Rune protocol messages](https://docs.ordinals.com/runes/specification.html#runestones) called "runestones", which are used to mint and etch Rune tokens.
 
-runelib is a typeScript lib for enciphering and deciphering [runestones](https://docs.ordinals.com/runes/specification.html#runestones).
+It works in both node.js and browsers.
+
+## Installation
+``` bash
+npm install runelib
+```
 
 
-
-# Deciphering
+# Decipher/Decode
 
 
 ```ts
@@ -14,9 +19,7 @@ const stone = Runestone.decipher(mintRawTx);
 ```
 
 
-# Enciphering
-
-
+# Encipher/Encode
 
 ```ts
 const block = 2586233;
@@ -27,17 +30,14 @@ const buffer = mintstone.encipher();
 ```
 
 
-# Minting 
+# Mint
 
-Example code that minting [UNCOMMON•GOODS](https://ordinals.com/rune/UNCOMMON%E2%80%A2GOODS)
+The following example code mints [UNCOMMON•GOODS](https://ordinals.com/rune/UNCOMMON%E2%80%A2GOODS).
 
 ```ts
 
 async function mint() {
-
-
     const mintstone = new Runestone([], none(), some(new RuneId(1, 0)), some(1));
-
 
     const keyPair = ECPair.fromWIF(
         yourKey,
@@ -78,23 +78,17 @@ async function mint() {
     });
 
     await signAndSend(keyPair, psbt, address as string);
-    
 }
 ```
 
-# Etching 
+# Etch
 
-
-
-
-Example code that etching a token
+The following example code etches a new token.
 
 ```ts
 
 
 async function etching() {
-
-
     const name = "CCCCCCCCCCCCCCCCCCNH";
 
     const keyPair = ECPair.fromWIF(
@@ -115,8 +109,6 @@ async function etching() {
     const scriptTree: Taptree = {
         output: etching_script,
     }
-
-
 
     const script_p2tr = payments.p2tr({
         internalPubkey: toXOnly(keyPair.publicKey),
@@ -192,10 +184,12 @@ async function etching() {
         value: change
     });
 
-
     await signAndSend(keyPair, psbt, address as string);
-
-
-
 }
 ```
+
+---
+
+## Contributing
+
+All contributions are welcome. Feel free to open PRs.
