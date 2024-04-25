@@ -26,13 +26,17 @@ export const toHex = (msg: number[]): string => {
 
 
 
-export function chunks<T>(bin: T[], len: number): T[][] {
+export function chunks<T>(bin: T[], chunkSize: number): T[][] {
 
     const chunks: T[][] = [];
+    let offset = 0;
 
-    for (let i = 0; i < bin.length; i++) {
-        const chunk = bin.slice(i * len, i * len + len);
+    while (offset < bin.length) {
+        // Use Buffer.slice to create a chunk. This method does not copy the memory;
+        // it creates a new Buffer that references the original memory.
+        const chunk = bin.slice(offset, offset + chunkSize);
         chunks.push(chunk);
+        offset += chunkSize;
     }
 
     return chunks;
@@ -72,61 +76,4 @@ export function toPushData(data: Buffer): Buffer {
     res.push(data)
 
     return Buffer.concat(res)
-}
-
-export function splitBufferIntoChunks(buffer: Buffer, chunkSize: number = 520): Buffer[] {
-    const chunks: Buffer[] = [];
-    let offset = 0;
-
-    while (offset < buffer.length) {
-        // Use Buffer.slice to create a chunk. This method does not copy the memory;
-        // it creates a new Buffer that references the original memory.
-        const chunk = buffer.slice(offset, offset + chunkSize);
-        chunks.push(chunk);
-        offset += chunkSize;
-    }
-
-    return chunks;
-}
-
-export function applySpacers(str: string, spacers: number): string {
-    let res = ''
-
-    for (let i = 0; i < str.length; i++) {
-        res += str.charAt(i)
-
-        if (spacers > 0) {
-            // Get the least significant bit
-            let bit = spacers & 1;
-
-            if (bit === 1) {
-                res += '•'
-            }
-
-            // Right shift the number to process the next bit
-            spacers >>= 1;
-        }
-    }
-
-    return res
-}
-
-export function getSpacersVal(str: string): number {
-    let res = 0
-    let spacersCnt = 0
-    
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charAt(i)
-        
-        if (char === '•') {
-            res += 1 << (i - 1 - spacersCnt)
-            spacersCnt++
-        } 
-    }
-
-    return res
-}
-
-export function removeSpacers(rune: string): string {
-    return  rune.replace(/[•]+/g, "")
 }

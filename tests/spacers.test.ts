@@ -1,6 +1,6 @@
 import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import { applySpacers, getSpacersVal } from '../src/utils'
+import { applySpacers, getSpacersVal } from '../src/spacers'
 import { Rune } from '../dist'
 use(chaiAsPromised)
 
@@ -32,7 +32,7 @@ describe('Test rune name spacers', () => {
             return applySpacers(name_, getSpacersVal(name))
         }
         
-        const name1 = 'CRAIG•IS•SATOSHI•NAKAMOTO';
+        const name1 = 'XXXXXX';
 
         expect(doEncodeAndDecode(name1)).to.equal(name1)
 

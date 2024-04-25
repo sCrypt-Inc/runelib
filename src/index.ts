@@ -2,4 +2,4 @@ export * from './runestones'
 
 export {none, some} from './fts'
 
-export {applySpacers, getSpacersVal} from './utils'
+export {applySpacers, getSpacersVal, removeSpacers} from './spacers'

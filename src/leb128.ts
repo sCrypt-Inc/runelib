@@ -18,20 +18,37 @@ export function encodeLEB128(value: bigint): number[] {
     return bytes;
 }
 
-export function decodeLEB128(buffer: number[]): bigint {
-    let result = BigInt(0);
-    let shift = 0;
-    let size = buffer.length;
-    let byte = 0;
+export function decodeLEB128(buf: number[]): {
+    n: bigint,
+    len: number
+} {
 
-    for (let i = 0; i < size; i++) {
-        byte = buffer[i];
-        result |= BigInt(byte & 0x7F) << BigInt(shift);
-        if ((byte & 0x80) === 0) {
-            break;
-        }
-        shift += 7;
+    let n = BigInt(0);
+    for (let i = 0; i < buf.length; i++) {
+        const byte = BigInt(buf[i]);
+
+        if (i > 18) {
+            throw new Error("Overlong");
+          }
+        
+          let value = byte & BigInt(0b0111_1111);
+
+
+          if ((i == 18) && ((value & BigInt(0b0111_1100)) != BigInt(0))){
+            throw new Error("Overflow");
+          }
+          
+      
+          n |= value << (BigInt(7) * BigInt(i));
+      
+          if ((byte & BigInt(0b1000_0000)) == BigInt(0)) {
+            return {
+                n, 
+                len: i + 1
+            }
+          }
     }
 
-    return result;
+    throw new Error("Unterminated");
+    
 }

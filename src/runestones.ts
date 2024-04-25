@@ -1,10 +1,9 @@
 import { Transaction, script } from "bitcoinjs-lib";
 import { base26Decode, base26Encode } from "./base26";
-import { Varint } from "./varint";
 import { Option, none, some } from "./fts";
-import { encodeLEB128 } from "./leb128";
-import { chunks, getSpacersVal, removeSpacers, splitBufferIntoChunks, toPushData } from "./utils";
-import { ContentType } from "./contentType";
+import { decodeLEB128, encodeLEB128 } from "./leb128";
+import { chunks, toPushData } from "./utils";
+import { getSpacersVal, removeSpacers } from "./spacers";
 
 export class RuneId {
     constructor(public block: number, public idx: number) {
@@ -196,7 +195,7 @@ export class Runestone {
 
     static create(json: EtchJSON | MintJSON, type: 'etch' | 'mint' | 'transfer' = 'etch') {
 
-        if(type === 'etch') {
+        if (type === 'etch') {
             json = json as EtchJSON
             const runename = Rune.fromName(json.name);
 
@@ -212,19 +211,19 @@ export class Runestone {
                     json.endOffset ? some(json.endOffset) : none()
                 )
             );
-    
+
             const divisibility = json.divisibility ? some(json.divisibility) : none();
-    
+
             const premine = json.premine ? some(json.premine) : none();
-    
+
             const spacers = json.name.indexOf('•') > -1 ? some(getSpacersVal(json.name)) : none();
-    
+
             const symbol = json.symbol ? some(json.symbol) : none();
 
 
             const pointer = typeof json.pointer === 'number' ? some(json.pointer) : none();
-    
-    
+
+
             const etching = new Etching(
                 divisibility,
                 premine,
@@ -234,12 +233,12 @@ export class Runestone {
                 some(terms),
                 true
             );
-    
+
             return new Runestone([], some(etching), none(), pointer);
-        } else if(type === 'mint') {
+        } else if (type === 'mint') {
             json = json as MintJSON
             const pointer = typeof json.pointer === 'number' ? some(json.pointer) : none();
-    
+
             return new Runestone([], none(), some(new RuneId(json.block, json.txIdx)), pointer);
         } else {
             throw new Error(`not ${type} support now`)
@@ -321,7 +320,7 @@ export class Runestone {
             let {
                 n,
                 len
-            } = Varint.decode(payload.slice(i));
+            } = decodeLEB128(payload.slice(i));
             integers.push(n);
             i += len;
         }
@@ -890,13 +889,14 @@ export class EtchInscription {
                 }
             });
 
-        // TODO: empty data?
+        if (this.data && this.data.length > 0) {
 
-        res.push(Buffer.from('00', 'hex'))
+            res.push(Buffer.from('00', 'hex'))
 
-        const dataChunks = splitBufferIntoChunks(this.data, 520)
-        for (const chunk of dataChunks) {
-            res.push(toPushData(chunk))
+            const dataChunks = chunks(Array.from(this.data), 520)
+            for (const chunk of dataChunks) {
+                res.push(toPushData(Buffer.from(chunk)))
+            }
         }
 
         res.push(Buffer.from('68', 'hex')) // OP_ENDIF
