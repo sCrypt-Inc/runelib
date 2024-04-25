@@ -75,7 +75,6 @@ async function mintWithP2wpkh() {
     await signAndSend(keyPair, psbt, address as string);
     
 
-
 }
 
 

@@ -36,12 +36,8 @@ async function etching() {
 
     const ins = new EtchInscription()
 
-    //ins.setContent("text/plain", Buffer.from('scrypt is best', 'utf-8'))
+    ins.setContent("text/plain", Buffer.from('scrypt is best', 'utf-8'))
     ins.setRune(name)
-    console.log(ins.encipher().toString('hex'))
-
-
-
 
     const etching_script_asm = `${toXOnly(keyPair.publicKey).toString(
         "hex"
@@ -77,16 +73,8 @@ async function etching() {
     const address = script_p2tr.address ?? "";
     console.log("send coin to address", address);
 
-    // const utxos = await waitUntilUTXO(address as string)
-    // console.log(`Using UTXO ${utxos[0].txid}:${utxos[0].vout}`);
-
-    const utxos = [
-        {
-            txid: "03dd486aaad6b2d6bacab33ed783088ad3aa8ef87603ab48448cceac474e2581",
-            vout: 1,
-            value: 100000000
-        }
-    ]
+    const utxos = await waitUntilUTXO(address as string)
+    console.log(`Using UTXO ${utxos[0].txid}:${utxos[0].vout}`);
 
     const psbt = new Psbt({ network });
 
