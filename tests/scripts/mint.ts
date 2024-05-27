@@ -79,9 +79,7 @@ async function mintWithP2wpkh() {
 
 
 async function mintWithTaproot() {
-
     const mintstone = new Runestone([], none(), some(new RuneId(2586233, 1009)), some(1));
-
 
 
     const keyPair = ECPair.fromWIF(
@@ -107,12 +105,19 @@ async function mintWithTaproot() {
 
 
     const psbt = new Psbt({ network });
-    psbt.addInput({
-        hash: utxos[0].txid,
-        index: utxos[0].vout,
-        witnessUtxo: { value: utxos[0].value, script: p2pktr.output! },
-        tapInternalKey: toXOnly(keyPair.publicKey)
-    });
+
+    for (let i = 0; i < utxos.length; i++) {
+        const utxo = utxos[i];
+
+        psbt.addInput({
+            hash: utxo.txid,
+            index: utxo.vout,
+            witnessUtxo: { value: utxo.value, script: p2pktr.output! },
+            tapInternalKey: toXOnly(keyPair.publicKey)
+        });
+    
+        
+    }
 
     psbt.addOutput({
         script: mintstone.encipher(),
@@ -120,16 +125,19 @@ async function mintWithTaproot() {
     });
 
     psbt.addOutput({
-        address: "tb1qh9338ymus4tcsv7g0xptwx4ksjsujqmlq945cp", // rune receive address
-        value: 10000
+        address: "tb1ppresfm876y9ddn3fgw2zr0wj0pl3zanslje9nfpznq3kc90q46rqmnne43", // rune receive address
+        value: 546
     });
 
-    const fee = 5000;
+    const fee = 12000;
 
-    const change = utxos[0].value - fee - 10000;
+    const change = utxos.reduce((acc, utxo) => {
+
+        return acc + utxo.value
+    }, 0) - fee - 546;
 
     psbt.addOutput({
-        address: "tb1qh9338ymus4tcsv7g0xptwx4ksjsujqmlq945cp", // change address
+        address: "tb1ppresfm876y9ddn3fgw2zr0wj0pl3zanslje9nfpznq3kc90q46rqmnne43", // change address
         value: change
     });
 
@@ -233,7 +241,10 @@ export async function getTx(id: string): Promise<string> {
 export async function signAndSend(keyPair: BTCSigner, psbt: Psbt, address: string) {
     if (process.env.NODE) {
 
-        psbt.signInput(0, keyPair);
+        for (let i = 0; i < psbt.inputCount; i++) {
+            psbt.signInput(i, keyPair);
+        }
+        
         psbt.finalizeAllInputs();
 
         const tx = psbt.extractTransaction();
