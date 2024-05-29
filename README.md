@@ -65,12 +65,12 @@ async function mint() {
 
     psbt.addOutput({
         address: ord_address, // ord address
-        value: 10000
+        value: 546
     });
 
     const fee = 5000;
 
-    const change = utxos[0].value - fee - 10000;
+    const change = utxos[0].value - fee - 546;
 
     psbt.addOutput({
         address: change_address, // change address
@@ -188,8 +188,178 @@ async function etching() {
 }
 ```
 
+
+
+# Transfer
+
+You can transfer runes by edicts.
+```ts
+
+const keyPair = ECPair.fromWIF(
+    yourKey,
+    network
+);
+
+
+const tweakedSigner = tweakSigner(keyPair, { network });
+// Generate an address from the tweaked public key
+const p2pktr = payments.p2tr({
+    pubkey: toXOnly(tweakedSigner.publicKey),
+    network
+});
+const address = p2pktr.address ?? "";
+console.log(`Waiting till UTXO is detected at this Address: ${address}`);
+
+const utxos = await waitUntilUTXO(address as string);
+
+
+const psbt = new Psbt({ network });
+
+for (let i = 0; i < utxos.length; i++) {
+    const utxo = utxos[i];
+
+    psbt.addInput({
+        hash: utxo.txid,
+        index: utxo.vout,
+        witnessUtxo: { value: utxo.value, script: p2pktr.output! },
+        tapInternalKey: toXOnly(keyPair.publicKey)
+    });
+
+}
+
+const edicts: Array<Edict> = [];
+// transfer BESTSCRYPTMINT on testnet
+const edict: Edict = new Edict(new RuneId(2586233, 1009), 100n, 1 /**receiving runes at 1th output**/)
+edicts.push(edict)
+
+const mintstone = new Runestone(edicts, none(), none(), some(2) /**receiving change runes at 2th output**/);
+
+
+psbt.addOutput({
+    script: mintstone.encipher(),
+    value: 0
+});
+
+
+psbt.addOutput({
+    address:  change_ord_address, // receiver ord address
+    value: 546
+});
+
+
+psbt.addOutput({
+    address:  receiver_ord_address, // change ord address
+    value: 546
+});
+
+
+const fee = 6000;
+
+const change = utxos.reduce((acc, utxo) => {
+    return acc + utxo.value
+}, 0) - fee - 546*2;
+
+psbt.addOutput({
+    address: change_address, // change address
+    value: change
+});
+
+await signAndSend(tweakedSigner, psbt, address as string);
+```
+
+
+
+
+# Airdrop
+
+Airdrop runes by transfering runes.
+
+
+```ts
+
+const keyPair = ECPair.fromWIF(
+    YourKey,
+    network
+);
+
+
+const tweakedSigner = tweakSigner(keyPair, { network });
+// Generate an address from the tweaked public key
+const p2pktr = payments.p2tr({
+    pubkey: toXOnly(tweakedSigner.publicKey),
+    network
+});
+const address = p2pktr.address ?? "";
+console.log(`Waiting till UTXO is detected at this Address: ${address}`);
+
+const utxos = await waitUntilUTXO(address as string);
+
+console.log(`Using UTXO len: ${utxos.length}`);
+
+
+const psbt = new Psbt({ network });
+
+for (let i = 0; i < utxos.length; i++) {
+    const utxo = utxos[i];
+
+    psbt.addInput({
+        hash: utxo.txid,
+        index: utxo.vout,
+        witnessUtxo: { value: utxo.value, script: p2pktr.output! },
+        tapInternalKey: toXOnly(keyPair.publicKey)
+    });
+
+    
+}
+
+const edicts: Array<Edict> = [];
+
+for (let i = 0; i < 10; i++) {
+    const edict: Edict = new Edict(new RuneId(2586233, 1009), 100n, i+2)
+    edicts.push(edict)
+}
+
+const mintstone = new Runestone(edicts, none(), none(), none());
+
+
+psbt.addOutput({
+    script: mintstone.encipher(),
+    value: 0
+});
+
+psbt.addOutput({
+    address: change_ord_address, // rune change address
+    value: 546
+});
+
+for (let i = 0; i < 10; i++) {
+    psbt.addOutput({
+        address: receiver_ord_address, // rune receive address
+        value: 546
+    });
+}
+
+
+
+const fee = 100000;
+
+const change = utxos.reduce((acc, utxo) => {
+    return acc + utxo.value
+}, 0) - fee - 546*11;
+
+psbt.addOutput({
+    address: change_address, // change address
+    value: change
+});
+
+await signAndSend(tweakedSigner, psbt, address as string);
+```
+
+
+
+
 ---
 
-## Contributing
+# Contributing
 
 All contributions are welcome. Feel free to open PRs.
