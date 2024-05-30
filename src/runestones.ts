@@ -310,8 +310,28 @@ export class Runestone {
         const msgBuff = msg.toBuffer()
 
         const prefix = Buffer.from('6a5d', 'hex')  // OP_RETURN OP_13
-        const pushNum = Buffer.alloc(1)
-        pushNum.writeUint8(msgBuff.length)
+
+        let pushNum;
+        if(msgBuff.length < 0x4c) {
+            pushNum = Buffer.alloc(1)
+            pushNum.writeUint8(msgBuff.length)
+        } else if(msgBuff.length < 0x100) {
+            pushNum = Buffer.alloc(2)
+            pushNum.writeUint8(0x4c)
+            pushNum.writeUint8(msgBuff.length)
+        } else if(msgBuff.length < 0x10000) {
+            pushNum = Buffer.alloc(3)
+            pushNum.writeUint8(0x4d)
+            pushNum.writeUint16LE(msgBuff.length)
+        }  else if(msgBuff.length < 0x100000000) {
+            pushNum = Buffer.alloc(5)
+            pushNum.writeUint8(0x4e)
+            pushNum.writeUint32LE(msgBuff.length)
+        } else {
+            throw new Error("runestone too big!")
+        }
+
+
         return Buffer.concat([prefix, pushNum, msgBuff])
     }
 
