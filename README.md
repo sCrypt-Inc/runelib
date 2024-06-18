@@ -136,6 +136,8 @@ async function etching() {
     const utxos = await waitUntilUTXO(address as string)
     console.log(`Using UTXO ${utxos[0].txid}:${utxos[0].vout}`);
 
+    // you need to wait the funding transaction get `6` or more confirmations
+
     const psbt = new Psbt({ network });
 
 
