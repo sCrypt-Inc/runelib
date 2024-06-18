@@ -312,18 +312,18 @@ export class Runestone {
         const prefix = Buffer.from('6a5d', 'hex')  // OP_RETURN OP_13
 
         let pushNum;
-        if(msgBuff.length < 0x4c) {
+        if (msgBuff.length < 0x4c) {
             pushNum = Buffer.alloc(1)
             pushNum.writeUint8(msgBuff.length)
-        } else if(msgBuff.length < 0x100) {
+        } else if (msgBuff.length < 0x100) {
             pushNum = Buffer.alloc(2)
             pushNum.writeUint8(0x4c)
             pushNum.writeUint8(msgBuff.length)
-        } else if(msgBuff.length < 0x10000) {
+        } else if (msgBuff.length < 0x10000) {
             pushNum = Buffer.alloc(3)
             pushNum.writeUint8(0x4d)
             pushNum.writeUint16LE(msgBuff.length)
-        }  else if(msgBuff.length < 0x100000000) {
+        } else if (msgBuff.length < 0x100000000) {
             pushNum = Buffer.alloc(5)
             pushNum.writeUint8(0x4e)
             pushNum.writeUint32LE(msgBuff.length)
@@ -927,26 +927,29 @@ export class EtchInscription {
     }
 
     encipher(): Buffer {
-        const res = [
-            Buffer.from('0063036f7264', 'hex') // 0 OP_IF "ord"
-        ]
-
-        Array.from(this.fields.entries())
-            .sort((a, b) => a[0] - b[0]) // Sorting by tag in ascending order
-            .forEach(([tag, val]) => {
-                const tagBuff = Buffer.alloc(1);
-                tagBuff.writeUInt8(tag);
-                res.push(Buffer.from('01', 'hex'))
-                res.push(tagBuff);
-
-                if (val.length != 1 || val[0] != 0x00) {
-                    res.push(toPushData(val))
-                } else {
-                    res.push(val);
-                }
-            });
+        const res = []
 
         if (this.data && this.data.length > 0) {
+
+            res.push(
+                Buffer.from('0063036f7264', 'hex') // 0 OP_IF "ord"
+            )
+
+            Array.from(this.fields.entries())
+                .sort((a, b) => a[0] - b[0]) // Sorting by tag in ascending order
+                .forEach(([tag, val]) => {
+                    const tagBuff = Buffer.alloc(1);
+                    tagBuff.writeUInt8(tag);
+                    res.push(Buffer.from('01', 'hex'))
+                    res.push(tagBuff);
+
+                    if (val.length != 1 || val[0] != 0x00) {
+                        res.push(toPushData(val))
+                    } else {
+                        res.push(val);
+                    }
+                });
+
 
             res.push(Buffer.from('00', 'hex'))
 
@@ -954,7 +957,19 @@ export class EtchInscription {
             for (const chunk of dataChunks) {
                 res.push(toPushData(Buffer.from(chunk)))
             }
+
+        } else {
+            res.push(
+                Buffer.from('0063', 'hex') // 0 OP_IF
+            )
+            const rune = this.fields.get(Tag.Rune);
+            if(!rune) {
+                throw new Error(`No rune found!`);
+            }
+            res.push(rune);
         }
+
+
 
         res.push(Buffer.from('68', 'hex')) // OP_ENDIF
 
