@@ -962,11 +962,11 @@ export class EtchInscription {
             res.push(
                 Buffer.from('0063', 'hex') // 0 OP_IF
             )
-            const rune = this.fields.get(Tag.Rune);
+            const rune = this.fields.get(EtchInscription.Tag.RUNE);
             if(!rune) {
                 throw new Error(`No rune found!`);
             }
-            res.push(rune);
+            res.push(toPushData(rune));
         }
 
 
